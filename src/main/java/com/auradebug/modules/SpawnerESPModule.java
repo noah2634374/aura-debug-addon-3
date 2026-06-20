@@ -2,21 +2,16 @@ package com.auradebug.modules;
 
 import com.auradebug.AuraDebugAddon;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.renderer.Renderer3D;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.MobSpawnerBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.EntityType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,18 +80,15 @@ public class SpawnerESPModule extends Module {
     private void onRender3D(Render3DEvent event) {
         if (mc.player == null || mc.world == null) return;
 
-        // Rotate line
         rotationAngle += 2f;
         if (rotationAngle >= 360f) rotationAngle = 0f;
 
-        // Rescan every 60 ticks
         scanTick++;
         if (scanTick >= 60 || spawners.isEmpty()) {
             scanTick = 0;
             scanSpawners();
         }
 
-        // Render each spawner
         for (SpawnerInfo info : spawners) {
             renderSpawner(event, info);
         }
@@ -117,7 +109,7 @@ public class SpawnerESPModule extends Module {
 
                 for (BlockEntity be : chunk.getBlockEntities().values()) {
                     if (be instanceof MobSpawnerBlockEntity spawnerBE) {
-                        String mobType = getMobType(mc.world, spawnerBE);
+                        String mobType = getMobType(spawnerBE);
                         spawners.add(new SpawnerInfo(be.getPos().toImmutable(), mobType));
                     }
                 }
@@ -125,25 +117,19 @@ public class SpawnerESPModule extends Module {
         }
     }
 
-    private String getMobType(World world, MobSpawnerBlockEntity spawner) {
+    private String getMobType(MobSpawnerBlockEntity spawner) {
         try {
-            var logic = spawner.getLogic();
-            // Access spawn entry via reflection or nbt
-            var nbt = spawner.createNbt(world.getRegistryManager());
+            var nbt = spawner.createNbt(mc.world.getRegistryManager());
             if (nbt != null && nbt.contains("SpawnData")) {
                 var spawnData = nbt.getCompound("SpawnData");
                 if (spawnData.contains("entity")) {
                     var entity = spawnData.getCompound("entity");
                     if (entity.contains("id")) {
-                        String id = entity.getString("id");
-                        // Strip "minecraft:" prefix
-                        return id.replace("minecraft:", "").replace("_", " ");
+                        return entity.getString("id").replace("minecraft:", "").replace("_", " ");
                     }
                 }
             }
-        } catch (Exception e) {
-            // fallback
-        }
+        } catch (Exception ignored) {}
         return "Unbekannt";
     }
 
@@ -156,55 +142,38 @@ public class SpawnerESPModule extends Module {
         int height = lineHeight.get();
         Color color = lineColor.get();
 
-        // The spawner is 1x1 block wide. Draw a rotating rectangle/line
-        // Width matches spawner (1 block wide = 0.5 half-width from center)
-        double hw = 0.5; // half width of spawner
-
+        double hw = 0.5;
         double radAngle = Math.toRadians(rotationAngle);
         double cos = Math.cos(radAngle);
         double sin = Math.sin(radAngle);
 
-        // Two corners of the top of the rotating "plank"
         double x1 = px + hw * cos;
         double z1 = pz + hw * sin;
         double x2 = px - hw * cos;
         double z2 = pz - hw * sin;
-
         double topY = py + height;
 
-        // Draw 4 lines forming a rotating plane (bottom-left to top-left, bottom-right to top-right, connecting tops)
         event.renderer.line(x1, py, z1, x1, topY, z1, color);
         event.renderer.line(x2, py, z2, x2, topY, z2, color);
         event.renderer.line(x1, topY, z1, x2, topY, z2, color);
         event.renderer.line(x1, py, z1, x2, py, z2, color);
 
-        // Label above spawner
         if (showLabel.get() && mc.player != null) {
             double dist = mc.player.getPos().distanceTo(new Vec3d(px, py + 0.5, pz));
-            String label = capitalize(info.mobType) + " §7(" + (int) dist + "m)";
-
-            // Render name tag above spawner
-            RenderUtils.renderText(event.matrices,
-                net.minecraft.text.Text.of("§c" + label),
-                pos.getX() + 0.5f,
-                pos.getY() + 1.5f,
-                pos.getZ() + 0.5f,
-                1.0f,
-                true
+            event.renderer.box(
+                pos.getX(), (int) topY, pos.getZ(),
+                pos.getX() + 1, (int) topY + 1, pos.getZ() + 1,
+                color, color, ShapeMode.Lines, 0
             );
         }
     }
 
     private String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
-        String[] words = s.split(" ");
         StringBuilder sb = new StringBuilder();
-        for (String w : words) {
-            if (!w.isEmpty()) {
-                sb.append(Character.toUpperCase(w.charAt(0)));
-                sb.append(w.substring(1).toLowerCase());
-                sb.append(" ");
-            }
+        for (String w : s.split(" ")) {
+            if (!w.isEmpty()) sb.append(Character.toUpperCase(w.charAt(0)))
+                .append(w.substring(1).toLowerCase()).append(" ");
         }
         return sb.toString().trim();
     }
