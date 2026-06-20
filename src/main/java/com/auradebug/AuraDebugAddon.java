@@ -27,6 +27,11 @@ public class AuraDebugAddon extends MeteorAddon {
     }
 
     @Override
+    public void onRegisterCategories() {
+        Modules.registerCategory(CATEGORY);
+    }
+
+    @Override
     public String getPackage() {
         return "com.auradebug";
     }
