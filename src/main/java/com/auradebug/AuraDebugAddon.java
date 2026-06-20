@@ -1,0 +1,33 @@
+package com.auradebug;
+
+import com.auradebug.modules.*;
+import com.auradebug.hud.*;
+import meteordevelopment.meteorclient.addons.MeteorAddon;
+import meteordevelopment.meteorclient.systems.modules.Modules;
+import meteordevelopment.meteorclient.systems.modules.Category;
+import meteordevelopment.meteorclient.systems.hud.Hud;
+import meteordevelopment.meteorclient.systems.hud.HudGroup;
+import net.minecraft.item.Items;
+
+public class AuraDebugAddon extends MeteorAddon {
+
+    public static final Category CATEGORY = new Category("Aura Debug", Items.BEACON.getDefaultStack());
+    public static final HudGroup HUD_GROUP = new HudGroup("Aura Debug");
+
+    @Override
+    public void onInitialize() {
+        Modules.get().add(new ChunkReloaderModule());
+        Modules.get().add(new StaffRadarModule());
+        Modules.get().add(new DeepslateESPModule());
+        Modules.get().add(new SpawnerESPModule());
+        Modules.get().add(new ChunkFinderModule());
+
+        Hud.get().register(StaffRadarHud.INFO);
+        Hud.get().register(RegionMapHud.INFO);
+    }
+
+    @Override
+    public String getPackage() {
+        return "com.auradebug";
+    }
+}
